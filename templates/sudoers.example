@@ -8,9 +8,9 @@
 # attempted sdk -> tmux switch and the coordinator will roll back.
 #
 # Replace `ubuntu` with whatever user channel/server.ts runs as.
-# Replace `inkieran-cc.service` with the actual unit name of your CC instance.
+# Replace `ariake-cc.service` with the actual unit name of your CC instance.
 #
 # Install with:  sudo visudo -f /etc/sudoers.d/ariake-channel-restart
 #                (visudo will syntax-check before saving)
 
-ubuntu ALL=(root) NOPASSWD: /bin/systemctl restart inkieran-cc.service
+ubuntu ALL=(root) NOPASSWD: /bin/systemctl restart ariake-cc.service

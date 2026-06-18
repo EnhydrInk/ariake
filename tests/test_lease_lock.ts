@@ -50,7 +50,7 @@ function loadFlock(): (fd: number, op: number) => number {
 }
 
 async function runHolder(holdSec: number): Promise<number> {
-  const lockPath = process.env.INKIERAN_LEASE_LOCK_PATH ?? TEST_LOCK
+  const lockPath = process.env.ARIAKE_LEASE_LOCK_PATH ?? TEST_LOCK
   const flock = loadFlock()
   const fd = openSync(lockPath, 'a+')
   try {
@@ -71,7 +71,7 @@ async function runHolder(holdSec: number): Promise<number> {
 
 function runHolderSpawn(holdSec: number): { stdout: string; status: number } {
   const r = spawnSync('bun', ['run', __filename, '--hold', String(holdSec)], {
-    env: { ...process.env, INKIERAN_LEASE_LOCK_PATH: TEST_LOCK },
+    env: { ...process.env, ARIAKE_LEASE_LOCK_PATH: TEST_LOCK },
     encoding: 'utf8',
   })
   return { stdout: (r.stdout ?? '') + (r.stderr ?? ''), status: r.status ?? -1 }
@@ -85,7 +85,7 @@ async function runDriver(): Promise<number> {
 
   console.log('=== Step 1: A holds 3s; B starts 500ms later — B must be denied ===')
   const a = spawn('bun', ['run', __filename, '--hold', String(HOLDER_HOLD_TIME)], {
-    env: { ...process.env, INKIERAN_LEASE_LOCK_PATH: TEST_LOCK },
+    env: { ...process.env, ARIAKE_LEASE_LOCK_PATH: TEST_LOCK },
   })
   let aOut = ''
   a.stdout.on('data', (d) => (aOut += d.toString()))
@@ -117,7 +117,7 @@ async function runDriver(): Promise<number> {
   console.log('=== Step 3: D and E race — exactly one acquired, exactly one denied ===')
   const dProm = new Promise<string>((resolve) => {
     const p = spawn('bun', ['run', __filename, '--hold', '1.0'], {
-      env: { ...process.env, INKIERAN_LEASE_LOCK_PATH: TEST_LOCK },
+      env: { ...process.env, ARIAKE_LEASE_LOCK_PATH: TEST_LOCK },
     })
     let buf = ''
     p.stdout.on('data', (d) => (buf += d.toString()))
@@ -126,7 +126,7 @@ async function runDriver(): Promise<number> {
   })
   const eProm = new Promise<string>((resolve) => {
     const p = spawn('bun', ['run', __filename, '--hold', '1.0'], {
-      env: { ...process.env, INKIERAN_LEASE_LOCK_PATH: TEST_LOCK },
+      env: { ...process.env, ARIAKE_LEASE_LOCK_PATH: TEST_LOCK },
     })
     let buf = ''
     p.stdout.on('data', (d) => (buf += d.toString()))
@@ -158,7 +158,7 @@ async function runDriver(): Promise<number> {
   } else {
     // 4a) Python holds 1.5s; Bun tries — Bun should be denied
     const pyA = spawn('python3', [pyHolderScript, '--hold', '1.5'], {
-      env: { ...process.env, INKIERAN_LEASE_LOCK_PATH: TEST_LOCK },
+      env: { ...process.env, ARIAKE_LEASE_LOCK_PATH: TEST_LOCK },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let pyAOut = ''
@@ -177,7 +177,7 @@ async function runDriver(): Promise<number> {
 
     // 4b) Bun holds 1.5s; Python tries — Python should be denied
     const bunC = spawn('bun', ['run', __filename, '--hold', '1.5'], {
-      env: { ...process.env, INKIERAN_LEASE_LOCK_PATH: TEST_LOCK },
+      env: { ...process.env, ARIAKE_LEASE_LOCK_PATH: TEST_LOCK },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let bunCOut = ''
@@ -186,7 +186,7 @@ async function runDriver(): Promise<number> {
 
     await new Promise((r) => setTimeout(r, SETTLE_MS))
     const pyD = spawnSync('python3', [pyHolderScript, '--hold', '0.1'], {
-      env: { ...process.env, INKIERAN_LEASE_LOCK_PATH: TEST_LOCK },
+      env: { ...process.env, ARIAKE_LEASE_LOCK_PATH: TEST_LOCK },
       encoding: 'utf8',
     })
     await new Promise<void>((resolve) => bunC.on('exit', () => resolve()))

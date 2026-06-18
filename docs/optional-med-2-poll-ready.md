@@ -8,7 +8,7 @@
 
 After the fire-and-forget restart, the coordinator polls `/session/current` until `session_id == resume_sid && active == true`. The channel-side answer comes from two sources, in order:
 
-1. `INKIERAN_EXPECTED_SESSION_ID` env (set by the cc startup script when launched with `--resume <sid>`)
+1. `ARIAKE_EXPECTED_SESSION_ID` env (set by the cc startup script when launched with `--resume <sid>`)
 2. fallback: scan `~/.claude/projects/*/*.jsonl`, filter by `cwd` field, return the most-recently-modified
 
 Source 1 is deterministic and fast — set in the script's exec line, well before the new channel process starts. Source 2 is only used when source 1 is absent, which shouldn't happen in production but covers the case of running `channel/server.ts` manually without going through the script.
@@ -35,7 +35,7 @@ This would guarantee CC is actually ready to receive keystrokes — not just tha
 
 ## When to revisit
 
-- If you find scenarios where `INKIERAN_EXPECTED_SESSION_ID` is reliably set but the channel reports ready while CC is still in a modal / loading state
+- If you find scenarios where `ARIAKE_EXPECTED_SESSION_ID` is reliably set but the channel reports ready while CC is still in a modal / loading state
 - If you operate CC across many host environments with non-trivial startup paths (some with `--resume` actually failing partway, leaving CC in a recoverable but not-yet-ready state)
 - If you observe "first message after switch silently lost to modal-eat" reports correlated with the post-switch window
 

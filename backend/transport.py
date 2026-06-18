@@ -262,14 +262,19 @@ async def transport_switch(payload: dict) -> JSONResponse:
                         )
                     # fall through into commit
                 else:
-                    # no sid → ordinary rollback (no restart_pending pattern possible)
-                    try:
-                        async with httpx.AsyncClient(timeout=15) as h2:
-                            await h2.post(f"{old_url}/lease/acquire", json={"resume": sid})
-                    except Exception:
-                        pass
+                    # No sid -> no restart_pending pattern possible, but the new
+                    # transport may still hold the lock from a half-completed
+                    # acquire (HTTP connect failed AFTER channel grabbed flock).
+                    # Must release new before reacquiring old — same reasoning
+                    # as the sid path (review-trail round 4: zombie holder).
+                    rollback = await _rollback_release_then_reacquire(new_url, old_url, sid)
                     return JSONResponse(
-                        {"ok": False, "error": f"acquire exception: {exc_err}", "session_id": sid},
+                        {
+                            "ok": False,
+                            "error": f"acquire exception: {exc_err}",
+                            "session_id": sid,
+                            **rollback,
+                        },
                         status_code=502,
                     )
 

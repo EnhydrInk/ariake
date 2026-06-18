@@ -37,25 +37,25 @@ import { readdir, stat, writeFile, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dlopen, FFIType } from 'bun:ffi'
 
-const PORT = Number(process.env.INKIERAN_PORT ?? 8910)
-const TMUX_TARGET = `${process.env.INKIERAN_TMUX ?? 'inkieran'}:0`
-const UPLOADS_DIR = process.env.INKIERAN_UPLOADS ?? '/var/lib/ariake/uploads'
-const SOURCE_NAME = process.env.INKIERAN_SOURCE ?? 'ariake'
+const PORT = Number(process.env.ARIAKE_PORT ?? 8910)
+const TMUX_TARGET = `${process.env.ARIAKE_TMUX ?? 'inkieran'}:0`
+const UPLOADS_DIR = process.env.ARIAKE_UPLOADS ?? '/var/lib/ariake/uploads'
+const SOURCE_NAME = process.env.ARIAKE_SOURCE ?? 'ariake'
 // CC's cwd (the directory tmux's `claude` runs in). MUST match the SDK transport's
-// INKIERAN_SDK_CWD so the two share the same jsonl pool and the same lock file.
-const INKIERAN_CWD = process.env.INKIERAN_CWD ?? '/opt/ariake/cc-cwd'
-const LEASE_LOCK_PATH = process.env.INKIERAN_LEASE_LOCK_PATH ?? pathJoin(INKIERAN_CWD, '.lease.lock')
-const AUTOSTART = process.env.INKIERAN_AUTOSTART !== '0'
+// ARIAKE_SDK_CWD so the two share the same jsonl pool and the same lock file.
+const ARIAKE_CWD = process.env.ARIAKE_CWD ?? '/opt/ariake/cc-cwd'
+const LEASE_LOCK_PATH = process.env.ARIAKE_LEASE_LOCK_PATH ?? pathJoin(ARIAKE_CWD, '.lease.lock')
+const AUTOSTART = process.env.ARIAKE_AUTOSTART !== '0'
 // Heuristic: assume a CC turn finishes within this many ms after the last inject.
 // Used by /lease/release post-margin (tmux CC exposes no turn-end signal).
-const DRAIN_MARGIN_MS = Number(process.env.INKIERAN_DRAIN_MARGIN_MS ?? 8000)
-const DEFAULT_DRAIN_TIMEOUT_SEC = Number(process.env.INKIERAN_DRAIN_TIMEOUT ?? 30)
+const DRAIN_MARGIN_MS = Number(process.env.ARIAKE_DRAIN_MARGIN_MS ?? 8000)
+const DEFAULT_DRAIN_TIMEOUT_SEC = Number(process.env.ARIAKE_DRAIN_TIMEOUT ?? 30)
 // File the cc startup script (templates/cc.sh.patch.sh) reads on boot to get
 // the sid to `claude --resume <sid>` with.
-const RESUME_SID_FILE = process.env.INKIERAN_RESUME_SID_FILE ?? '/tmp/ariake-cc-resume-sid'
+const RESUME_SID_FILE = process.env.ARIAKE_RESUME_SID_FILE ?? '/tmp/ariake-cc-resume-sid'
 // The CC service unit name systemctl restart targets. Match this to the unit
 // the sudoers entry whitelists.
-const CC_SERVICE_NAME = process.env.INKIERAN_CC_SERVICE ?? 'inkieran-cc.service'
+const CC_SERVICE_NAME = process.env.ARIAKE_CC_SERVICE ?? 'ariake-cc.service'
 
 const enc = new TextEncoder()
 
@@ -397,9 +397,9 @@ async function _readSessionCwd(fp: string): Promise<string | null> {
 async function getCurrentSessionId(): Promise<string | null> {
   // Prefer the env hint over jsonl mtime: `claude --resume <sid>` doesn't
   // write to its jsonl until the first turn, so mtime races against the
-  // coordinator's poll. The cc startup script sets INKIERAN_EXPECTED_SESSION_ID
+  // coordinator's poll. The cc startup script sets ARIAKE_EXPECTED_SESSION_ID
   // when it launches `claude` with --resume.
-  const expected = process.env.INKIERAN_EXPECTED_SESSION_ID
+  const expected = process.env.ARIAKE_EXPECTED_SESSION_ID
   if (expected && /^[0-9a-f-]{8,64}$/i.test(expected)) {
     return expected
   }
@@ -418,7 +418,7 @@ async function getCurrentSessionId(): Promise<string | null> {
       try {
         const st = await stat(fp)
         const cwd = await _readSessionCwd(fp)
-        if (cwd === INKIERAN_CWD) {
+        if (cwd === ARIAKE_CWD) {
           candidates.push({ sid: f.replace(/\.jsonl$/, ''), mtime: st.mtimeMs })
         }
       } catch { continue }
@@ -459,7 +459,7 @@ if (AUTOSTART) {
   }
 } else {
   acceptMessages = false
-  process.stderr.write(`ariake-channel: standby mode (INKIERAN_AUTOSTART=0); waiting for /lease/acquire\n`)
+  process.stderr.write(`ariake-channel: standby mode (ARIAKE_AUTOSTART=0); waiting for /lease/acquire\n`)
 }
 
 // ── inbound: send-keys ────────────────────────────────────────────────

@@ -77,7 +77,7 @@ The initial fix awaited `proc.stderr` text after killing the subprocess for erro
 The round-2 design was: `await spawn(systemctl restart) → sleep → acceptMessages = true → return 200`. This **cannot work** in production. The reasoning chain:
 
 1. The channel process is a stdio MCP server, child of the `claude` binary running inside tmux.
-2. `systemctl restart inkieran-cc.service` causes tmux to kill the `claude` session.
+2. `systemctl restart ariake-cc.service` causes tmux to kill the `claude` session.
 3. `claude` dies → all its MCP child processes die, including the channel.
 4. The `await spawn.exited` blocks until... the channel itself is killed.
 5. Even if `await` returned a value, the HTTP response would never finish writing — the writer is dead.
@@ -101,7 +101,7 @@ The first sketch of `/session/current` returned the most-recently-modified `.jso
 
 **Objection**: `claude --resume <sid>` does not write to its jsonl until the first turn. There is a window between "channel returns 200 + restart_pending" and "claude writes its first line" during which the mtime-newest jsonl is **the PREVIOUS session**, not the resumed one. The coordinator polls and sees the old sid → times out → rolls back, even though everything succeeded.
 
-**Fix**: the cc startup script exports `INKIERAN_EXPECTED_SESSION_ID="$sid"` to itself when launched with `--resume`. The channel's `/session/current` reads this env first; mtime scan is only a fallback. The env hint is deterministic and available immediately on process start, before any jsonl write.
+**Fix**: the cc startup script exports `ARIAKE_EXPECTED_SESSION_ID="$sid"` to itself when launched with `--resume`. The channel's `/session/current` reads this env first; mtime scan is only a fallback. The env hint is deterministic and available immediately on process start, before any jsonl write.
 
 This is the line in `templates/cc.sh.patch.sh` that exports the variable, and the corresponding env-first lookup in `getCurrentSessionId` in `channel/server.ts`.
 

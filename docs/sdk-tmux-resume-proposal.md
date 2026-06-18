@@ -28,18 +28,18 @@ The naive plan was: in tmux's `/lease/acquire`, write the sid to a file, call `s
 1. **Validate** the sid format (UUID-ish regex). Malformed sid → 400 with no side effects.
 2. **Acquire the file lock** with `flock LOCK_EX | LOCK_NB`. Denied → 409, CC has not been touched, the coordinator rolls back cleanly. (This is the lock-first invariant from review round 1.)
 3. **Save** `wasAccepting = acceptMessages`, set `acceptMessages = false`. New inbound messages get 503 instead of hitting a kill/loading CC.
-4. **Write** the sid to `${INKIERAN_RESUME_SID_FILE}` (default `/tmp/ariake-cc-resume-sid`).
+4. **Write** the sid to `${ARIAKE_RESUME_SID_FILE}` (default `/tmp/ariake-cc-resume-sid`).
 5. **Spawn** `sudo -n /bin/systemctl restart --no-block <cc service>`. `--no-block` tells systemctl not to wait for the restart job to complete; it returns ~500ms after dispatching the D-Bus request.
 6. **Await** the spawn's exit with a 3-second timeout. Exit 0 → systemd has accepted the request, proceed. Non-zero or timeout → sudoers/systemctl misconfig. Clean up (`rm` sid file, release lock, restore `wasAccepting`), return 500. The coordinator rolls back.
 7. **Immediately return** `200 {restart_pending: true, poll_url: "/session/current", poll_match: {session_id, active: true}}`. The HTTP response flushes to socket in the ~100-500ms window between `systemctl --no-block` returning and tmux killing the channel process. (This is the fire-and-forget pattern from review round 3 — see [review-trail.md](./review-trail.md) for why "await the actual restart" is impossible.)
 
 ### cc startup script side — `templates/cc.sh.patch.sh`
 
-1. Reads `${INKIERAN_RESUME_SID_FILE}`. If present and the content is a valid sid: `RESUME_ARGS=("--resume" "$sid")`, `export INKIERAN_EXPECTED_SESSION_ID="$sid"`, `rm -f` the file.
+1. Reads `${ARIAKE_RESUME_SID_FILE}`. If present and the content is a valid sid: `RESUME_ARGS=("--resume" "$sid")`, `export ARIAKE_EXPECTED_SESSION_ID="$sid"`, `rm -f` the file.
 2. If absent or invalid: falls back to `--continue` if the project's jsonl pool is non-empty, otherwise bare start.
 3. `exec claude "${CLAUDE_BASE_ARGS[@]}" "${RESUME_ARGS[@]}"` — single line keeps claude as systemd's direct child so the next kill propagates cleanly.
 
-The `INKIERAN_EXPECTED_SESSION_ID` env hint is what makes the coordinator's poll deterministic on the new channel process.
+The `ARIAKE_EXPECTED_SESSION_ID` env hint is what makes the coordinator's poll deterministic on the new channel process.
 
 ### Coordinator side — `_poll_until_ready` in `backend/transport.py`
 
@@ -63,7 +63,7 @@ After receiving `restart_pending: true` from the new channel's `/lease/acquire`:
 |------|--------------|
 | `channel/server.ts` | `/lease/acquire` resume branch: validate + lock-first + write sid + spawn restart + return `restart_pending` |
 | `backend/transport.py` | `_poll_until_ready` + `_rollback_release_then_reacquire` + the `restart_pending` and exception branches in `transport_switch` |
-| cc startup script | resume sid file handling + `INKIERAN_EXPECTED_SESSION_ID` env export (template: `templates/cc.sh.patch.sh`) |
+| cc startup script | resume sid file handling + `ARIAKE_EXPECTED_SESSION_ID` env export (template: `templates/cc.sh.patch.sh`) |
 | sudoers | `<user> ALL=(root) NOPASSWD: /bin/systemctl restart <cc service>` (template: `templates/sudoers.example`) |
 
 ## Trade-offs (in the current shape)

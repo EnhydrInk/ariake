@@ -27,6 +27,7 @@ import fcntl
 import json
 import logging
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -49,31 +50,31 @@ from claude_agent_sdk import (
 
 
 # ── Config ────────────────────────────────────────────────────────────
-PORT = int(os.environ.get("INKIERAN_SDK_PORT", "8911"))
+PORT = int(os.environ.get("ARIAKE_SDK_PORT", "8911"))
 # CWD = `claude` cwd. MUST match the tmux transport's cwd for shared jsonl pool
 # AND for shared .lease.lock file. Don't change one without the other.
-CWD = os.environ.get("INKIERAN_SDK_CWD", "/opt/ariake/cc-cwd")
+CWD = os.environ.get("ARIAKE_SDK_CWD", "/opt/ariake/cc-cwd")
 # BACKEND_BASE — host backend that wants sidecar (CoT / asides) reports. Optional.
 # Empty -> skip sidecar entirely.
-BACKEND_BASE = os.environ.get("INKIERAN_BACKEND", "").strip()
-SOURCE_NAME = os.environ.get("INKIERAN_SOURCE", "ariake")
-UPLOADS_DIR = os.environ.get("INKIERAN_UPLOADS", "/var/lib/ariake/uploads")
+BACKEND_BASE = os.environ.get("ARIAKE_BACKEND", "").strip()
+SOURCE_NAME = os.environ.get("ARIAKE_SOURCE", "ariake")
+UPLOADS_DIR = os.environ.get("ARIAKE_UPLOADS", "/var/lib/ariake/uploads")
 EVENT_RING_MAX = 100
 # Lock file: defaults to ${CWD}/.lease.lock. MUST be the same path the tmux
 # transport uses for cross-impl interlock to work.
-LEASE_LOCK_PATH = os.environ.get("INKIERAN_LEASE_LOCK_PATH") or os.path.join(CWD, ".lease.lock")
+LEASE_LOCK_PATH = os.environ.get("ARIAKE_LEASE_LOCK_PATH") or os.path.join(CWD, ".lease.lock")
 
 # claude-agent-sdk permission_mode. dontAsk = anything not in allowed_tools is
 # auto-denied (no interactive prompt that would hang the client_lock). For full
 # Bash/Read/Write/Edit + external MCP, set bypassPermissions explicitly via env
 # — that ACCEPTS prompt-injection risk from user input / external MCP returns.
 _PERMISSION_MODE_VALID = {"default", "acceptEdits", "plan", "bypassPermissions", "dontAsk", "auto"}
-_PERMISSION_MODE_RAW = os.environ.get("INKIERAN_SDK_PERMISSION_MODE", "dontAsk").strip()
+_PERMISSION_MODE_RAW = os.environ.get("ARIAKE_SDK_PERMISSION_MODE", "dontAsk").strip()
 if _PERMISSION_MODE_RAW not in _PERMISSION_MODE_VALID:
     # Bad config = warn loudly; fall back to safe mode. Don't basicConfig at
     # import time — it pins root logger level WARNING and silences module INFO.
     logging.getLogger("ariake-sdk-channel").warning(
-        f"INKIERAN_SDK_PERMISSION_MODE={_PERMISSION_MODE_RAW!r} invalid "
+        f"ARIAKE_SDK_PERMISSION_MODE={_PERMISSION_MODE_RAW!r} invalid "
         f"(valid: {_PERMISSION_MODE_VALID}); falling back to 'dontAsk'"
     )
     _PERMISSION_MODE_RAW = "dontAsk"
@@ -83,7 +84,7 @@ PERMISSION_MODE = _PERMISSION_MODE_RAW
 # below also disables CLAUDE.md loading, so this env is the ONLY way to give CC
 # a personality on the SDK transport. Empty -> CC runs naked (still has the
 # reply MCP tool, no other instructions).
-SYSTEM_PROMPT_OVERRIDE = os.environ.get("INKIERAN_SDK_SYSTEM", "").strip() or None
+SYSTEM_PROMPT_OVERRIDE = os.environ.get("ARIAKE_SDK_SYSTEM", "").strip() or None
 
 log = logging.getLogger("ariake-sdk-channel")
 
@@ -95,6 +96,23 @@ def esc_xml(s: str) -> str:
 
 def esc_attr(s: str) -> str:
     return esc_xml(s).replace('"', "&quot;").replace("'", "&#39;")
+
+
+# Match channel/server.ts toSafeLine: strip every line-break form
+# (\r/\n/U+2028/U+2029 -> space) and C0 controls (\x00-\x1F except \t, plus
+# \x7F). REQUIRED for tmux byte-parity even though the SDK does not need
+# single-line input — switching transports mid-conversation must produce
+# identical envelope bytes for identical payloads.
+_LINEBREAK_RE = re.compile(r"[\r\n  ]+")
+_C0_RE = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
+
+
+def to_safe_line(s: str) -> str:
+    return _C0_RE.sub("", _LINEBREAK_RE.sub(" ", s))
+
+
+def safe_attr(s: str) -> str:
+    return esc_attr(to_safe_line(s).strip())
 
 
 def utc_iso_z() -> str:
@@ -170,21 +188,25 @@ def build_envelope(
 ) -> str:
     """Build the inbound <channel> tag. MUST produce byte-identical output to
     channel/server.ts deliver() for the same inputs — anything else means the
-    same input switches behavior depending on which transport routed it."""
+    same input switches behavior depending on which transport routed it.
+
+    Every free-form field (body text + chat_id + user + attachment paths) goes
+    through to_safe_line: strip every line-break form + strip C0 controls.
+    This mirrors the tmux transport's sanitization, which is driven there by
+    `send-keys -l` constraints. Matching it here is what makes the byte-parity
+    claim true; without it, the same payload produces different envelopes
+    depending on which transport routed it. message_id and ts are generated
+    locally with safe alphabets, so esc_attr alone is enough for them."""
     attach_prefix = " ".join(
-        f"[attachment {i + 1} -> {a.get('path', '')}]"
+        f"[attachment {i + 1} -> {to_safe_line(str(a.get('path', '')))}]"
         for i, a in enumerate(attachments or [])
     )
     merged = " ".join(p for p in [attach_prefix, text] if p)
-    # Strip \n -> space: legacy from send-keys hardening; preserved for byte
-    # parity with the tmux transport. Even though the SDK doesn't need single-
-    # line input, switching transports mid-conversation must not change envelope
-    # bytes for the same input.
-    safe = esc_xml(merged.replace("\n", " "))
+    safe = esc_xml(to_safe_line(merged))
     ts = utc_iso_z()
     return (
-        f'<channel source="{SOURCE_NAME}" chat_id="{esc_attr(chat_id)}" '
-        f'message_id="{esc_attr(message_id)}" user="{esc_attr(user)}" '
+        f'<channel source="{SOURCE_NAME}" chat_id="{safe_attr(chat_id)}" '
+        f'message_id="{esc_attr(message_id)}" user="{safe_attr(user)}" '
         f'ts="{esc_attr(ts)}">{safe}</channel>'
     )
 
@@ -358,7 +380,7 @@ def build_options(resume: str | None = None) -> csdk.ClaudeAgentOptions:
     return csdk.ClaudeAgentOptions(
         # WARNING: setting_sources=[] disables filesystem settings loading
         # including the user/project CLAUDE.md path. For CC to have any
-        # personality on this transport, INKIERAN_SDK_SYSTEM must be set with
+        # personality on this transport, ARIAKE_SDK_SYSTEM must be set with
         # the inline system prompt. Empty -> CC runs naked.
         system_prompt=SYSTEM_PROMPT_OVERRIDE,
         # External MCP + in-process ariake. project-level loader puts itself
@@ -542,7 +564,7 @@ def _release_lease_lock() -> None:
 
 
 # ── Optional sidecar (CoT / asides reporter) ──────────────────────────
-# If INKIERAN_BACKEND is set, every turn flushes ThinkingBlock + TextBlock
+# If ARIAKE_BACKEND is set, every turn flushes ThinkingBlock + TextBlock
 # contents to {BACKEND_BASE}/api/sidecar. Empty BACKEND_BASE -> no-op.
 async def _post_sidecar(
     chat_id: str, thinking: str, asides: list[str], session_id: str | None
@@ -625,7 +647,7 @@ async def lifespan(app: FastAPI):
     """AUTOSTART=1 (default): acquire the file lock + connect the client.
     AUTOSTART=0: standby. Wait for /lease/acquire to promote us."""
     global is_active
-    autostart = os.environ.get("INKIERAN_SDK_AUTOSTART", "1") != "0"
+    autostart = os.environ.get("ARIAKE_SDK_AUTOSTART", "1") != "0"
     if autostart:
         lock_state = _try_acquire_lease_lock()
         if lock_state == "denied":
@@ -711,7 +733,7 @@ async def post_tick(req: Request):
 
 
 # ── Lease ──────────────────────────────────────────────────────────────
-DEFAULT_DRAIN_TIMEOUT = float(os.environ.get("INKIERAN_SDK_DRAIN_TIMEOUT", "30"))
+DEFAULT_DRAIN_TIMEOUT = float(os.environ.get("ARIAKE_SDK_DRAIN_TIMEOUT", "30"))
 
 
 async def _drain_admitted(timeout: float = DEFAULT_DRAIN_TIMEOUT) -> bool:

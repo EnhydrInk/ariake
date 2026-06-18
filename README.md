@@ -43,8 +43,8 @@ The repo runs locally without Docker. You need: Python 3.10+, Bun (for the tmux 
 cd sdk-channel
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-export INKIERAN_SDK_CWD=/tmp/ariake-cc-cwd  # any dir is fine for the demo
-export INKIERAN_SDK_SYSTEM="You are an echo bot. Reply to every channel message by calling the reply tool with the same text the user sent."
+export ARIAKE_SDK_CWD=/tmp/ariake-cc-cwd  # any dir is fine for the demo
+export ARIAKE_SDK_SYSTEM="You are an echo bot. Reply to every channel message by calling the reply tool with the same text the user sent."
 python server.py
 
 # 2. Echo host (terminal B)

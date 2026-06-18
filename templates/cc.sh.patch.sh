@@ -31,9 +31,9 @@
 #   - no file + jsonl pool non-empty       -> --continue (normal startup)
 #   - no file + jsonl pool empty           -> bare start (first launch)
 #
-# RESUME_SID_FILE MUST match channel/server.ts's INKIERAN_RESUME_SID_FILE
+# RESUME_SID_FILE MUST match channel/server.ts's ARIAKE_RESUME_SID_FILE
 # env, or the channel writes a file the script cannot find = silent forgetting.
-RESUME_SID_FILE="${INKIERAN_RESUME_SID_FILE:-/tmp/ariake-cc-resume-sid}"
+RESUME_SID_FILE="${ARIAKE_RESUME_SID_FILE:-/tmp/ariake-cc-resume-sid}"
 
 # Use a bash array, not a string. String concatenation gets word-split on
 # expansion and any future multi-arg case breaks. Array elements stay atomic.
@@ -54,7 +54,7 @@ if [ -f "$RESUME_SID_FILE" ]; then
     # uses this in preference to a jsonl-mtime scan — defeats the race where
     # `claude --resume` has not yet written its first line but the channel
     # gets polled for readiness by the coordinator.
-    export INKIERAN_EXPECTED_SESSION_ID="$sid"
+    export ARIAKE_EXPECTED_SESSION_ID="$sid"
     echo "ariake-cc: resume sid=${sid:0:8}… (from $RESUME_SID_FILE)" >&2
   else
     echo "ariake-cc: invalid sid in $RESUME_SID_FILE (length=${#sid}), falling back" >&2
@@ -64,8 +64,8 @@ fi
 # Fallback chain: no valid resume sid -> try --continue to pick up the most
 # recent jsonl. CC encodes the cwd as the project directory name (replacing
 # `/` with `-`), so for cwd=/opt/ariake/cc-cwd the slug is `-opt-ariake-cc-cwd`.
-# Adjust ARIAKE_CWD_SLUG to match your INKIERAN_CWD / INKIERAN_SDK_CWD.
-ARIAKE_CWD_SLUG="${INKIERAN_CWD_SLUG:--opt-ariake-cc-cwd}"
+# Adjust ARIAKE_CWD_SLUG to match your ARIAKE_CWD / ARIAKE_SDK_CWD.
+ARIAKE_CWD_SLUG="${ARIAKE_CWD_SLUG:--opt-ariake-cc-cwd}"
 if [ ${#RESUME_ARGS[@]} -eq 0 ]; then
   if ls "$HOME/.claude/projects/${ARIAKE_CWD_SLUG}"/*.jsonl >/dev/null 2>&1; then
     RESUME_ARGS=("--continue")

@@ -84,13 +84,13 @@ The coordinator does not own application state; it takes callbacks (`reconfigure
 The tmux transport's CC process is independent — it cannot just "switch which jsonl it appends to". To pick up the SDK's `session_id`, the tmux side must restart its CC with `claude --resume <sid>`. The implementation:
 
 1. **`POST tmux/lease/acquire {resume: sid}`** — validates `sid` format, acquires the local file lock first (so even if `restart` fails the backend can rollback cleanly), writes `sid` to `${RESUME_SID_FILE}`.
-2. **Spawn** `sudo -n /bin/systemctl restart --no-block inkieran-cc.service` and `await proc.exited` with a 3-second timeout. Exit 0 means systemd accepted the D-Bus request.
+2. **Spawn** `sudo -n /bin/systemctl restart --no-block ariake-cc.service` and `await proc.exited` with a 3-second timeout. Exit 0 means systemd accepted the D-Bus request.
 3. **Immediately return** `200 {ok: true, restart_pending: true, poll_url: "/session/current", poll_match: {session_id, active: true}}`. The HTTP response flushes to socket before systemd kills the channel process (~100-500ms window).
 4. **The CC startup script** (`templates/cc.sh.patch.sh`) reads `${RESUME_SID_FILE}` on boot. If present + valid: `claude ... --resume "$sid"` + `rm -f $RESUME_SID_FILE`. Otherwise fallback to `--continue`.
-5. **The new channel process** comes up with `AUTOSTART=1`, acquires the file lock, sets `acceptMessages = true`, exports `INKIERAN_EXPECTED_SESSION_ID="$sid"` to itself as an env hint so `GET /session/current` can return it deterministically (without scanning jsonl `mtime`, which races against `claude --resume`'s lazy first write).
+5. **The new channel process** comes up with `AUTOSTART=1`, acquires the file lock, sets `acceptMessages = true`, exports `ARIAKE_EXPECTED_SESSION_ID="$sid"` to itself as an env hint so `GET /session/current` can return it deterministically (without scanning jsonl `mtime`, which races against `claude --resume`'s lazy first write).
 6. **The backend** polls `new/session/current` until `session_id == sid && active == true` or timeout.
 
-A non-trivial design — see [sdk-tmux-resume-proposal.md](./sdk-tmux-resume-proposal.md) for why each piece is shaped this way and [review-trail.md](./review-trail.md) for the four-round path to the current implementation.
+A non-trivial design — see [sdk-tmux-resume-proposal.md](./sdk-tmux-resume-proposal.md) for why each piece is shaped this way and [review-trail.md](./review-trail.md) for the five-round path to the current implementation.
 
 ## Why not simpler
 

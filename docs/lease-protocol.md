@@ -9,7 +9,7 @@ Each transport tracks two pieces of state:
 - `acceptMessages: bool` — gates `/message` and `/tick` inbound. When `false`, both return `503 {"error": "lease released; transport idle"}`.
 - `_lease_lock_fd: int | null` — the open file descriptor holding `flock(LOCK_EX | LOCK_NB)` on `${CWD}/.lease.lock` (path configurable via env). `null` means standby.
 
-The lock path defaults to `${CWD}/.lease.lock`. **Both transports must point at the same path** — that is how they interlock. The conventional layout is one shared cwd (e.g. `/opt/inkieran/channel`) for both processes, so they also share the same jsonl pool.
+The lock path defaults to `${CWD}/.lease.lock`. **Both transports must point at the same path** — that is how they interlock. The conventional layout is one shared cwd (e.g. `/opt/ariake/cc-cwd`) for both processes, so they also share the same jsonl pool.
 
 ## Endpoints
 
@@ -85,7 +85,7 @@ Report the current `session_id` (the jsonl basename, no `.jsonl` suffix) and the
 
 `session_id` may be `null` if the transport has just started and not yet observed CC writing a session. Returning `null` is valid; the coordinator skips the resume hand-off if no sid is available from the old side.
 
-**Source of truth.** The reference SDK implementation reads `current_session_id` from a module-level variable updated by `SystemMessage(subtype="init")` / `ResultMessage.session_id` events from `client.receive_response()`. The reference tmux implementation looks at `INKIERAN_EXPECTED_SESSION_ID` (an env hint set by the cc startup script when launched with `--resume <sid>`) first, then falls back to scanning `~/.claude/projects/*/*.jsonl` by `cwd` field + most recent `mtime`. The env hint exists because `claude --resume <sid>` does not write to its jsonl until the first turn — a fresh mtime can race against the poll.
+**Source of truth.** The reference SDK implementation reads `current_session_id` from a module-level variable updated by `SystemMessage(subtype="init")` / `ResultMessage.session_id` events from `client.receive_response()`. The reference tmux implementation looks at `ARIAKE_EXPECTED_SESSION_ID` (an env hint set by the cc startup script when launched with `--resume <sid>`) first, then falls back to scanning `~/.claude/projects/*/*.jsonl` by `cwd` field + most recent `mtime`. The env hint exists because `claude --resume <sid>` does not write to its jsonl until the first turn — a fresh mtime can race against the poll.
 
 ### `GET /`
 

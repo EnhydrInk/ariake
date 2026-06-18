@@ -13,8 +13,8 @@ pip install -r requirements.txt
 #   CLAUDE_CODE_OAUTH_TOKEN=...
 # See docs/architecture.md for auth precedence.
 
-INKIERAN_SDK_CWD=/opt/ariake/cc-cwd \
-INKIERAN_SDK_SYSTEM="You are an echo bot. Reply to every channel message by calling the reply tool with the same text." \
+ARIAKE_SDK_CWD=/opt/ariake/cc-cwd \
+ARIAKE_SDK_SYSTEM="You are an echo bot. Reply to every channel message by calling the reply tool with the same text." \
   python server.py
 ```
 
@@ -22,20 +22,20 @@ INKIERAN_SDK_SYSTEM="You are an echo bot. Reply to every channel message by call
 
 | var                                | default                            | what |
 |------------------------------------|------------------------------------|------|
-| `INKIERAN_SDK_PORT`                | `8911`                             | HTTP port |
-| `INKIERAN_SDK_CWD`                 | `/opt/ariake/cc-cwd`               | `claude` cwd — MUST match channel's `INKIERAN_CWD` |
-| `INKIERAN_BACKEND`                 | empty                              | sidecar target; empty -> skip |
-| `INKIERAN_SOURCE`                  | `ariake`                           | value of `<channel source="...">` |
-| `INKIERAN_UPLOADS`                 | `/var/lib/ariake/uploads`          | uploads sandbox |
-| `INKIERAN_LEASE_LOCK_PATH`         | `${CWD}/.lease.lock`               | cross-process lock — MUST match channel |
-| `INKIERAN_SDK_AUTOSTART`           | `1`                                | `0` = standby |
-| `INKIERAN_SDK_DRAIN_TIMEOUT`       | `30`                               | seconds; release/acquire drain timeout |
-| `INKIERAN_SDK_PERMISSION_MODE`     | `dontAsk`                          | claude-agent-sdk permission_mode; `bypassPermissions` opens Bash/Read/Write/Edit + external MCP |
-| `INKIERAN_SDK_SYSTEM`              | empty                              | inline system prompt; empty = CC has NO instructions (see note below) |
+| `ARIAKE_SDK_PORT`                | `8911`                             | HTTP port |
+| `ARIAKE_SDK_CWD`                 | `/opt/ariake/cc-cwd`               | `claude` cwd — MUST match channel's `ARIAKE_CWD` |
+| `ARIAKE_BACKEND`                 | empty                              | sidecar target; empty -> skip |
+| `ARIAKE_SOURCE`                  | `ariake`                           | value of `<channel source="...">` |
+| `ARIAKE_UPLOADS`                 | `/var/lib/ariake/uploads`          | uploads sandbox |
+| `ARIAKE_LEASE_LOCK_PATH`         | `${CWD}/.lease.lock`               | cross-process lock — MUST match channel |
+| `ARIAKE_SDK_AUTOSTART`           | `1`                                | `0` = standby |
+| `ARIAKE_SDK_DRAIN_TIMEOUT`       | `30`                               | seconds; release/acquire drain timeout |
+| `ARIAKE_SDK_PERMISSION_MODE`     | `dontAsk`                          | claude-agent-sdk permission_mode; `bypassPermissions` opens Bash/Read/Write/Edit + external MCP |
+| `ARIAKE_SDK_SYSTEM`              | empty                              | inline system prompt; empty = CC has NO instructions (see note below) |
 
 ## Empty system prompt = CC runs naked
 
-The transport sets `setting_sources=[]` to keep CC from auto-loading settings (which would invoke hooks the sidecar duplicates). That also blocks the user-level `CLAUDE.md` loader. Net effect: `INKIERAN_SDK_SYSTEM` is the **only** way to give CC a personality on this transport. Leave it empty and CC runs with just the `reply` MCP tool, no instructions.
+The transport sets `setting_sources=[]` to keep CC from auto-loading settings (which would invoke hooks the sidecar duplicates). That also blocks the user-level `CLAUDE.md` loader. Net effect: `ARIAKE_SDK_SYSTEM` is the **only** way to give CC a personality on this transport. Leave it empty and CC runs with just the `reply` MCP tool, no instructions.
 
 ## permission_mode
 
@@ -56,7 +56,7 @@ To use external MCP tools, you also need to widen `permission_mode` (above) — 
 
 ## Sidecar (optional)
 
-Set `INKIERAN_BACKEND=http://your-host:port` and every completed turn POSTs to `${BACKEND}/api/sidecar`:
+Set `ARIAKE_BACKEND=http://your-host:port` and every completed turn POSTs to `${BACKEND}/api/sidecar`:
 
 ```json
 {
@@ -67,7 +67,7 @@ Set `INKIERAN_BACKEND=http://your-host:port` and every completed turn POSTs to `
 }
 ```
 
-Empty `INKIERAN_BACKEND` -> no sidecar calls. The host can run without one.
+Empty `ARIAKE_BACKEND` -> no sidecar calls. The host can run without one.
 
 ## Endpoints
 

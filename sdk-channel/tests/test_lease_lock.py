@@ -47,7 +47,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--hold", type=float, required=True)
     args = parser.parse_args()
-    lock_path = os.environ.get("INKIERAN_LEASE_LOCK_PATH", TEST_LOCK)
+    lock_path = os.environ.get("ARIAKE_LEASE_LOCK_PATH", TEST_LOCK)
     return hold(lock_path, args.hold)
 
 

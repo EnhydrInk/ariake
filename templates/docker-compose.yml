@@ -9,7 +9,7 @@
 # systemctl access for the fire-and-forget restart path. Run it directly on
 # the host once you have CC installed:
 #
-#   cd channel && bun install && INKIERAN_TMUX=mysession bun server.ts
+#   cd channel && bun install && ARIAKE_TMUX=mysession bun server.ts
 #
 # This file is a STARTING POINT, not a production deploy. Adapt volumes,
 # ports, env, and add a reverse-proxy layer as needed.
@@ -31,14 +31,14 @@ services:
     ports:
       - "8911:8911"
     environment:
-      INKIERAN_SDK_PORT: "8911"
-      INKIERAN_SDK_CWD: "/cc-cwd"
-      INKIERAN_SDK_AUTOSTART: "1"
-      INKIERAN_SDK_SYSTEM: >-
+      ARIAKE_SDK_PORT: "8911"
+      ARIAKE_SDK_CWD: "/cc-cwd"
+      ARIAKE_SDK_AUTOSTART: "1"
+      ARIAKE_SDK_SYSTEM: >-
         ${ARIAKE_SDK_SYSTEM:-You are an echo bot. For every inbound channel
         message, call the reply tool with the same text the user sent. Use the
         chat_id and message_id from the inbound tag.}
-      INKIERAN_BACKEND: "http://echo:18080"
+      ARIAKE_BACKEND: "http://echo:18080"
       # One of these must be set for claude-agent-sdk to authenticate.
       # See https://docs.claude.com/en/api/admin-api for details.
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"

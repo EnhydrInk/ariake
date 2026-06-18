@@ -6,7 +6,7 @@
 
 ## The problem (current trade-off)
 
-`channel/server.ts` writes the resume sid to `INKIERAN_RESUME_SID_FILE` (default `/tmp/ariake-cc-resume-sid`) before spawning `systemctl restart`. The cc startup script reads it on next boot. Current implementation:
+`channel/server.ts` writes the resume sid to `ARIAKE_RESUME_SID_FILE` (default `/tmp/ariake-cc-resume-sid`) before spawning `systemctl restart`. The cc startup script reads it on next boot. Current implementation:
 
 - `writeFile` syscall (sync at the syscall layer for small payloads)
 - the cc script reads the file, then `rm -f`s it

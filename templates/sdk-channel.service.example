@@ -1,4 +1,4 @@
-# /etc/systemd/system/inkieran-sdk-channel.service
+# /etc/systemd/system/ariake-sdk-channel.service
 #
 # Systemd unit for sdk-channel/server.py — the SDK transport.
 # Adjust User, paths, and the Anthropic auth env to match your setup.
@@ -16,16 +16,16 @@ Wants=network-online.target
 Type=simple
 User=ubuntu
 WorkingDirectory=/opt/ariake/sdk-channel
-Environment="INKIERAN_SDK_PORT=8911"
-Environment="INKIERAN_SDK_CWD=/opt/ariake/cc-cwd"
-Environment="INKIERAN_SDK_AUTOSTART=1"
-Environment="INKIERAN_SDK_DRAIN_TIMEOUT=30"
+Environment="ARIAKE_SDK_PORT=8911"
+Environment="ARIAKE_SDK_CWD=/opt/ariake/cc-cwd"
+Environment="ARIAKE_SDK_AUTOSTART=1"
+Environment="ARIAKE_SDK_DRAIN_TIMEOUT=30"
 # Point this at your host backend's /api/sidecar endpoint if you use sidecar
 # CoT capture; otherwise leave it and ignore the warning logs.
-Environment="INKIERAN_BACKEND=http://127.0.0.1:18080"
+Environment="ARIAKE_BACKEND=http://127.0.0.1:18080"
 # Replace with an actual system prompt for your bot — empty = CC runs with no
 # personality at all (setting_sources=[] blocks user-level CLAUDE.md).
-Environment="INKIERAN_SDK_SYSTEM="
+Environment="ARIAKE_SDK_SYSTEM="
 ExecStart=/opt/ariake/sdk-channel/.venv/bin/python /opt/ariake/sdk-channel/server.py
 Restart=on-failure
 RestartSec=5
