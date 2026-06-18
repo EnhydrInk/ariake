@@ -1,0 +1,50 @@
+# Minimal docker-compose for Ariake.
+#
+# Brings up:
+#   - example/echo_app.py    on :18080   (host backend with the transport coordinator)
+#   - sdk-channel/server.py  on :8911    (SDK transport)
+#
+# The tmux transport (channel/server.ts) is NOT in this compose: it depends on
+# a running tmux session with a `claude` binary inside it, plus host-level
+# systemctl access for the fire-and-forget restart path. Run it directly on
+# the host once you have CC installed:
+#
+#   cd channel && bun install && INKIERAN_TMUX=mysession bun server.ts
+#
+# This file is a STARTING POINT, not a production deploy. Adapt volumes,
+# ports, env, and add a reverse-proxy layer as needed.
+
+services:
+  echo:
+    build: ../example
+    ports:
+      - "18080:18080"
+    environment:
+      ARIAKE_TRANSPORT_TMUX: "http://host.docker.internal:8910"
+      ARIAKE_TRANSPORT_SDK:  "http://sdk-channel:8911"
+      ARIAKE_INITIAL: "sdk"
+    depends_on:
+      - sdk-channel
+
+  sdk-channel:
+    build: ../sdk-channel
+    ports:
+      - "8911:8911"
+    environment:
+      INKIERAN_SDK_PORT: "8911"
+      INKIERAN_SDK_CWD: "/cc-cwd"
+      INKIERAN_SDK_AUTOSTART: "1"
+      INKIERAN_SDK_SYSTEM: >-
+        ${ARIAKE_SDK_SYSTEM:-You are an echo bot. For every inbound channel
+        message, call the reply tool with the same text the user sent. Use the
+        chat_id and message_id from the inbound tag.}
+      INKIERAN_BACKEND: "http://echo:18080"
+      # One of these must be set for claude-agent-sdk to authenticate.
+      # See https://docs.claude.com/en/api/admin-api for details.
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      CLAUDE_CODE_OAUTH_TOKEN: "${CLAUDE_CODE_OAUTH_TOKEN:-}"
+    volumes:
+      - cc-cwd:/cc-cwd
+
+volumes:
+  cc-cwd:

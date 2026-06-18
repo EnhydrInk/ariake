@@ -1,0 +1,13 @@
+{
+  "name": "@ariake/channel",
+  "version": "0.1.0",
+  "description": "tmux transport for Ariake — Claude Code dual-transport channel layer",
+  "type": "module",
+  "main": "server.ts",
+  "scripts": {
+    "start": "bun run server.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  }
+}

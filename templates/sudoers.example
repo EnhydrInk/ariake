@@ -1,0 +1,16 @@
+# /etc/sudoers.d/ariake-channel-restart
+#
+# Allows the user running channel/server.ts to restart the CC service without a
+# password prompt. Required by the fire-and-forget sdk -> tmux resume path
+# (POST /lease/acquire with `resume` argument — see docs/sdk-tmux-resume-proposal.md).
+#
+# WITHOUT this sudoers entry, channel/server.ts will exit non-zero on every
+# attempted sdk -> tmux switch and the coordinator will roll back.
+#
+# Replace `ubuntu` with whatever user channel/server.ts runs as.
+# Replace `inkieran-cc.service` with the actual unit name of your CC instance.
+#
+# Install with:  sudo visudo -f /etc/sudoers.d/ariake-channel-restart
+#                (visudo will syntax-check before saving)
+
+ubuntu ALL=(root) NOPASSWD: /bin/systemctl restart inkieran-cc.service

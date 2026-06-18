@@ -1,0 +1,36 @@
+# /etc/systemd/system/inkieran-cc.service
+#
+# Systemd unit for the tmux-side Claude Code instance that channel/server.ts
+# drives. The unit name is referenced by the fire-and-forget sdk -> tmux
+# resume path (channel/server.ts calls `systemctl restart inkieran-cc.service`).
+# If you rename the unit, update the sudoers template AND the hard-coded name
+# in channel/server.ts (search for "inkieran-cc.service").
+#
+# Replace the User, ExecStart path, and tmux session name to match your setup.
+# `ExecStart` should launch `claude` inside a tmux session that channel/server.ts
+# is configured to target (env INKIERAN_TMUX, default "inkieran").
+#
+# The startup script (ExecStart) is responsible for reading the resume sid file
+# written by channel/server.ts on a sdk -> tmux switch — see
+# templates/cc.sh.patch.sh for the relevant snippet.
+
+[Unit]
+Description=Claude Code (tmux session for Ariake channel transport)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=ubuntu
+ExecStart=/opt/ariake/inkieran-cc.sh
+ExecStop=/usr/bin/tmux kill-session -t inkieran
+KillMode=mixed
+TimeoutStartSec=120
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+# CC writes its jsonl under $HOME/.claude/projects/<slug>/<sid>.jsonl
+Environment=HOME=/home/ubuntu
+
+[Install]
+WantedBy=multi-user.target
