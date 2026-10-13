@@ -21,7 +21,7 @@ Running both lets you flip when either side has trouble: if the provider's SDK b
 - **`backend/transport.py`** — switch coordinator. Seven-step atomic switch with `restart_pending` poll, release-before-reacquire rollback, exception-path poll guard.
 - **`channel/server.ts`** — tmux transport. Bun + `@modelcontextprotocol/sdk`. `tmux send-keys` injection + `bun:ffi` `flock` + fire-and-forget `systemctl restart` for sdk → tmux session resume.
 - **`sdk-channel/server.py`** — SDK transport. FastAPI + `claude-agent-sdk`. `AdmissionTicket` pattern + three-lock turn serialization + `fcntl.flock` cross-process lease.
-- **`docs/`** — [architecture](./docs/architecture.md) / [lease-protocol](./docs/lease-protocol.md) / [sdk-tmux-resume-proposal](./docs/sdk-tmux-resume-proposal.md) / [review-trail](./docs/review-trail.md) (five rounds of independent review) / [envelope-extensions](./docs/envelope-extensions.md) / two unverified optional optimizations.
+- **`docs/`** — [architecture](./docs/architecture.md) / [lease-protocol](./docs/lease-protocol.md) / [sdk-tmux-resume-proposal](./docs/sdk-tmux-resume-proposal.md) / [review-trail](./docs/review-trail.md) / [envelope-extensions](./docs/envelope-extensions.md) / two unverified optional optimizations.
 - **`templates/`** — `sudoers` / `systemd` units / `docker-compose.yml` / `cc.sh.patch.sh`.
 - **`tests/test_lease_lock.ts`** — Python ↔ Bun cross-process `flock` interlock test.
 - **`example/echo_app.py`** — minimal FastAPI host wiring the coordinator to an echo bot so `docker compose up` is green out of the box.
@@ -62,15 +62,11 @@ The tmux transport (`channel/server.ts`) needs a running tmux session with `clau
 
 [templates/docker-compose.yml](./templates/docker-compose.yml) is a starting point for a production-style compose deploy of just the SDK transport + host — adapt as you need.
 
-## Provenance
-
-This is an extraction from a private project (InKieran) at HEAD `inkieran/9da8a6a`. The transport layer has been running in production with daily transport switches; the extraction strips application-specific glue (UI, business prompt, voice synthesis adapter, etc.) and keeps the protocol + reference implementations.
-
 ## Status
 
-The two unverified optional optimizations in `docs/optional-*.md` are spec-level only — they are paths considered but not implemented. They are documented so a reader knows the road exists and does not have to start from zero if they want to take it.
+The two optional optimizations in `docs/optional-*.md` are spec-level only and not implemented.
 
-The fire-and-forget sdk → tmux resume path required five rounds of independent review to reach a working design; see [docs/review-trail.md](./docs/review-trail.md) for the full trail of what was tried, what broke, and why the current shape is what it is.
+The design trail of the fire-and-forget sdk → tmux resume path is in [docs/review-trail.md](./docs/review-trail.md).
 
 ## License
 
